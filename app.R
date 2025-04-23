@@ -65,7 +65,7 @@ run_study <- function(true_effect, n, sd = 1) {
 
 # --- Shiny UI 定義 ---
 ui <- fluidPage(
-  titlePanel("模擬實驗：研究重複性、統計功效與贏家詛咒"),
+  titlePanel("獨立樣本 t 檢定：p 值可重複性、統計功效與贏家詛咒"),
 
   sidebarLayout(
     sidebarPanel(
