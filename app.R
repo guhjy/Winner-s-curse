@@ -65,7 +65,7 @@ run_study <- function(true_effect, n, sd = 1) {
 
 # --- Shiny UI 定義 ---
 ui <- fluidPage(
-  titlePanel("獨立樣本 t 檢定：p 值可重複性、統計功效與贏家詛咒"),
+  titlePanel("獨立樣本 t 檢定：p 值可重複性、統計功效與贏家詛咒 （顧進裕 2025-04 用 Gemini 2.5 製作"),
 
   sidebarLayout(
     sidebarPanel(
