@@ -460,10 +460,7 @@ server <- function(input, output, session) {
       plot_data$Hypothesis <- factor(plot_data$Hypothesis, levels = present_levels)
     } else {
       # Handle case where Hypothesis column might be problematic (e.g., all NA)
-      # This might indicate an issue upstream in data generation or processing
       warning("Hypothesis factor levels could not be set properly.")
-      # You might want to stop plotting or plot without faceting/coloring by Hypothesis
-      # For now, let ggplot handle it, but be aware.
     }
 
     # Define colors making sure names match the factor levels present in the data
@@ -475,7 +472,9 @@ server <- function(input, output, session) {
     ggplot(plot_data, aes(x = p_value, fill = Hypothesis)) +
       # Ensure geom_density handles potential NA p_values gracefully
       geom_density(alpha = 0.6, na.rm = TRUE) +
-      geom_vline(xintercept = alpha_val, linetype = "dashed", color = "red", size = 1) +
+      # *** FIX: Changed size=1 to linewidth=1 ***
+      geom_vline(xintercept = alpha_val, linetype = "dashed", color = "red", linewidth = 1) +
+      # Note: 'size' aesthetic for text (annotate) is still correct
       annotate("text", x = alpha_val, y = Inf, label = paste("alpha =", alpha_val), hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
       # Use the dynamically created color map and limits
       scale_fill_manual(values = active_colors,
