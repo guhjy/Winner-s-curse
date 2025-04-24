@@ -415,9 +415,7 @@ server <- function(input, output, session) {
 
     # 使用 ggplot2 繪製密度圖
     ggplot(plot_data, aes(x = p_value, fill = Hypothesis)) +
-      # *** 修改：明確使用 after_stat(density) 映射到 y 軸 ***
-      # 雖然這是 geom_density 的默認行為，但明確寫出可以消除 ggplot2 3.4.0+ 的警告
-      geom_density(aes(y = after_stat(density)), alpha = 0.6, na.rm = TRUE) + # na.rm=TRUE 移除缺失值
+      geom_density(alpha = 0.6, na.rm = TRUE) + # na.rm=TRUE 移除缺失值
       geom_vline(xintercept = alpha_val, linetype = "dashed", color = "red", size = 1) +
       annotate("text", x = alpha_val, y = Inf, label = paste("alpha =", alpha_val), hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
       # 手動設定填充顏色
