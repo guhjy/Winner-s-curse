@@ -105,7 +105,7 @@ ui <- fluidPage(
                  h4("情境二：虛無假設 (H_0) 為真 (無真實效應)"),
                  verbatimTextOutput("results_H0"),
                  hr(),
-                 h4("原始研究 p 值分佈圖"),
+                 h4("原始研究 p 值分佈圖 (直方圖)"), # Changed title slightly
                  plotOutput("p_value_distribution_plot")
         ),
         tabPanel("分層重複成功率比較",
@@ -153,7 +153,7 @@ ui <- fluidPage(
 
                  strong("P 值分佈圖："),
                  p("此圖顯示了在對立假設為真和虛無假設為真兩種情境下，模擬出的原始研究 p 值的分布情況。"),
-                 p(em("當虛無假設 (H_0) 為真時："), "理論上 p 值應呈現均勻分佈（圖上的直方圖或密度曲線應大致是平坦的）。低於 alpha 的 p 值比例應接近 alpha。"),
+                 p(em("當虛無假設 (H_0) 為真時："), "理論上 p 值應呈現均勻分佈（圖上的直方圖或密度曲線應大致是平坦的）。低於 alpha 的 p 值比例應接近 alpha。使用直方圖時，每個長條的高度應大致相等。"), # Added note for histogram
                  p(em("當對立假設 (H_A) 為真時："), "p 值會傾向於集中在較低的值。低於 alpha 的 p 值比例反映了研究的統計功效。分佈的形狀取決於功效的大小。")
         )
       )
@@ -427,7 +427,6 @@ server <- function(input, output, session) {
   output$stratified_results_H0 <- renderText({ simulation_results()$stratified_H0 })
 
   # --- 輸出：渲染 p 值分佈圖 ---
-  # (Plotting logic remains the same, showing distribution of *original* study p-values)
   output$p_value_distribution_plot <- renderPlot({
     res <- simulation_results() # 獲取模擬結果
     # 確保 p 值數據可用 (使用 req 函數)
@@ -454,12 +453,10 @@ server <- function(input, output, session) {
     }
 
     # 確保 Hypothesis 是因子類型，並設定正確的層級順序 (如果需要)
-    # Ensure levels exist in the actual data before setting factor levels
     present_levels <- intersect(c("對立假設 (H_A) 為真", "虛無假設 (H_0) 為真"), unique(plot_data$Hypothesis))
     if (length(present_levels) > 0) {
       plot_data$Hypothesis <- factor(plot_data$Hypothesis, levels = present_levels)
     } else {
-      # Handle case where Hypothesis column might be problematic (e.g., all NA)
       warning("Hypothesis factor levels could not be set properly.")
     }
 
@@ -468,22 +465,26 @@ server <- function(input, output, session) {
     active_colors <- color_map[present_levels] # Use only colors for levels present
 
 
-    # 使用 ggplot2 繪製密度圖
+    # *** 使用 ggplot2 繪製直方圖 (顯示密度) ***
     ggplot(plot_data, aes(x = p_value, fill = Hypothesis)) +
-      # Ensure geom_density handles potential NA p_values gracefully
-      geom_density(alpha = 0.6, na.rm = TRUE) +
-      # *** FIX: Changed size=1 to linewidth=1 ***
+      # Use geom_histogram, map y to density, set binwidth and boundary
+      # Use position="identity" to overlay histograms with transparency
+      geom_histogram(aes(y = ..density..), binwidth = 0.05, boundary = 0, alpha = 0.7, position = "identity", na.rm = TRUE) +
+      # Add vline for alpha level
       geom_vline(xintercept = alpha_val, linetype = "dashed", color = "red", linewidth = 1) +
-      # Note: 'size' aesthetic for text (annotate) is still correct
+      # Add annotation for alpha
       annotate("text", x = alpha_val, y = Inf, label = paste("alpha =", alpha_val), hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
       # Use the dynamically created color map and limits
       scale_fill_manual(values = active_colors,
-                        limits = present_levels, # Use only present levels in the legend
-                        drop = FALSE) + # Keep legend consistent even if one level is missing
+                        limits = present_levels,
+                        drop = FALSE) +
       labs(
-        title = "原始研究 P 值分佈", x = "P 值", y = "密度", fill = "假設情境"
+        title = "原始研究 P 值分佈 (直方圖)", # Updated title
+        x = "P 值",
+        y = "密度", # Y-axis is density
+        fill = "假設情境"
       ) +
-      theme_minimal(base_family = "sans") + # 使用無襯線字體，確保跨平台兼容性
+      theme_minimal(base_family = "sans") +
       theme(
         plot.title = element_text(hjust = 0.5, size=16),
         legend.position = "bottom"
