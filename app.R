@@ -15,6 +15,7 @@ run_study <- function(true_effect, n, sd = 1) {
 
   # 模擬兩組數據
   group1 <- rnorm(n, mean = 0, sd = sd)
+  # The 'true_effect' here determines the mean difference for data generation
   group2 <- rnorm(n, mean = true_effect, sd = sd)
 
   # 執行獨立樣本 t 檢定
@@ -43,7 +44,12 @@ run_study <- function(true_effect, n, sd = 1) {
     } else {
       # 避免 n=1 的情況 (雖然前面已檢查 n>=2)
       if (n > 1) {
-        sd_pooled <- sqrt(((n - 1) * var1 + (n - 1) * var2) / (n + n - 2))
+        # Ensure denominators are not zero before division
+        if ((n + n - 2) > 0) {
+           sd_pooled <- sqrt(((n - 1) * var1 + (n - 1) * var2) / (n + n - 2))
+        } else {
+           sd_pooled <- NA # Avoid division by zero if n=1 for both groups somehow
+        }
       } else {
         sd_pooled <- NA # 無法計算合併標準差
       }
@@ -84,7 +90,9 @@ ui <- fluidPage(
                   min = 0.001, max = 0.1, value = 0.05, step = 0.001),
       numericInput("num_simulations", "模擬次數:",
                    value = 20000, min = 100, max = 50000, step = 100),
-      actionButton("run_sim", "執行模擬", icon = icon("play"), class = "btn-success")
+      actionButton("run_sim", "執行模擬", icon = icon("play"), class = "btn-success"),
+      hr(),
+      p(em("注意：此版本修改了模擬邏輯。重複研究現在基於原始研究觀察到的效應大小進行模擬。"))
     ),
 
     mainPanel(
@@ -117,19 +125,21 @@ ui <- fluidPage(
                    tags$li(strong("情境二 (虛無假設 H_0 為真)："), "假設母體中不存在真實的效應（真實效應大小為零）。")
                  ),
                  p("您可以調整側邊欄的參數（現在包含「每組樣本數」），然後點擊「執行模擬」按鈕，觀察參數變化對模擬結果（包括計算出的功效）的影響。"),
+                 p(strong("重要修改："), "在此版本中，每個「重複研究」的數據生成是基於其配對的「原始研究」所 *觀察到* 的效應大小 (Cohen's d)，而不是基於預設的真實效應大小。這模擬了一種情況，即研究者根據初步發現來設計或預期重複研究的結果。如果原始研究的效應量無法計算，則退回使用預設的真實效應大小。"),
 
                  h4("關鍵概念與結果解讀"),
                  strong("統計功效 (Statistical Power)："),
                  # *** 修改：描述反映計算出的功效 ***
                  p("指當對立假設 (H_A) 為真（即真實效應存在）時，研究能夠成功偵測到此效應（也就是得到 p < alpha）的機率。功效越高越好。它主要取決於真實效應大小、樣本數、alpha 水準以及數據變異性。在此應用程式中，您設定「每組樣本數」，我們會根據其他參數計算出預期的「統計功效」。"),
-                 p(em("在情境一 (對立假設 H_A 為真) 中："), "模擬結果會估計實際的功效（顯示為「原始研究顯著的比例」），這個值應接近側邊欄顯示的「計算出的統計功效」。對於那些原始研究顯著的案例，「整體重複成功率」也應該接近研究本身的功效。"),
+                 p(em("在情境一 (對立假設 H_A 為真) 中："), "模擬結果會估計實際的功效（顯示為「原始研究顯著的比例」），這個值應接近側邊欄顯示的「計算出的統計功效」。"),
 
                  # 其他解釋大致相同，但對 "目標功效" 或 "計算出的 n" 的引用已隱含更改
                  strong("重複成功率 (Replication Rate)："),
                  p("指一個報告了顯著結果 (p < alpha) 的原始研究，在相同條件下被重複進行時，能夠再次得到顯著結果的機率。"),
-                 p(em("在情境一 (對立假設 H_A 為真) 中："), "這個成功率主要由研究的統計功效決定。"),
-                 p(em("在情境二 (虛無假設 H_0 為真) 中："), "此時，原始研究的「顯著」結果其實是偽陽性（第一類型錯誤）。重複研究再次得到「顯著」結果（也就是另一個偽陽性）的機率，就等於您設定的 alpha 水準。"),
-                 p(em("在「分層重複成功率比較」分頁中："), "我們進一步觀察，在原始研究顯著的前提下，其初始 p 值的大小是否與重複成功的機率有關。通常預期（尤其在現實複雜情況下）初始 p 值越低，重複成功率越高。但在虛無假設為真時，重複成功率（偽陽性重複率）理論上應與初始 p 值無關，恆等於 alpha。"),
+                 p(em("在此模擬的特定設置下："), "重複研究的成功與否現在受到原始研究觀察到的效應大小（可能因隨機誤差而偏離真實值）的影響。"),
+                 p(em("在情境一 (對立假設 H_A 為真) 中："), "重複成功率會受到原始研究的功效以及觀察到的效應量（贏家詛咒可能使其膨脹）的雙重影響。"),
+                 p(em("在情境二 (虛無假設 H_0 為真) 中："), "原始研究的「顯著」結果是偽陽性。重複研究現在基於這個（因隨機性產生的）非零觀察效應量進行模擬。重複研究再次得到「顯著」結果的機率可能會高於 alpha 水準，因為它是基於一個非零的（儘管是隨機的）效應預期。"),
+                 p(em("在「分層重複成功率比較」分頁中："), "觀察初始 p 值與重複成功率的關係。在 H_A 下，關係可能更複雜。在 H_0 下，由於重複研究基於原始的隨機效應，重複率可能不再恆等於 alpha，且可能與原始 p 值（或其對應的觀察效應量）相關。"),
 
                  strong("贏家詛咒 (Winner's Curse)："),
                  p("指那些因為達到統計顯著而被挑選出來的研究（「贏家」），其觀察到的效應量往往會高估真實效應量的現象。這是因為，除了真實效應外，隨機誤差也「幫助」了這些研究達到顯著，而這種「有幫助」的隨機誤差通常會使觀察到的效應看起來更大。"),
@@ -138,7 +148,7 @@ ui <- fluidPage(
 
                  strong("向平均值迴歸 (Regression Toward the Mean)："),
                  p("當您重複一個初次觀察到極端結果（例如與顯著性相關的非常大的效應量）的研究時，重複研究所得到的結果，其效應量大小更可能接近母體的真實平均值（通常不如第一次那麼極端）。"),
-                 p(em("在情境一 (對立假設 H_A 為真) 中："), "比較原始「贏家」研究的平均 d，與它們對應的「重複研究」的平均 d。重複研究的平均 d 通常較小，更接近真實效應大小。"),
+                 p(em("在情境一 (對立假設 H_A 為真) 中："), "比較原始「贏家」研究的平均 d，與它們對應的「重複研究」的平均 d。由於重複研究現在基於原始觀察到的 d，這個現象的表現可能會與原始版本不同，但總體趨勢可能仍然存在，因為單次的隨機高估不太可能在重複中持續。"),
                  p(em("在情境二 (虛無假設 H_0 為真) 中："), "比較原始偽陽性研究的平均*絕對* |d|，與它們對應的重複研究的平均*絕對* |d|。重複研究的平均 |d| 通常較小，更接近真實值零。"),
 
                  strong("P 值分佈圖："),
@@ -214,16 +224,45 @@ server <- function(input, output, session) {
     # 使用進度條
     withProgress(message = '模擬進行中', value = 0, {
       for (i in 1:num_sim) {
-        # H_A 模擬對
+        # --- H_A 模擬對 ---
+        # 1. 執行原始研究
         res_orig_HA <- run_study(true_effect = true_effect_HA, n = n_to_use, sd = sd_val)
-        res_rep_HA <- run_study(true_effect = true_effect_HA, n = n_to_use, sd = sd_val)
+
+        # 2. *** MODIFICATION: Determine effect size for replication ***
+        #    Use the observed effect size (d_observed) from the original study.
+        #    Handle NA case: if d_observed is NA, fall back to the input true_effect_HA.
+        effect_for_rep_HA <- if (!is.na(res_orig_HA$d_observed) && is.finite(res_orig_HA$d_observed)) {
+          res_orig_HA$d_observed
+        } else {
+          true_effect_HA # Fallback if d_observed is NA or infinite
+        }
+
+        # 3. 執行重複研究，使用從原始研究確定的效應大小
+        res_rep_HA <- run_study(true_effect = effect_for_rep_HA, n = n_to_use, sd = sd_val)
+
+        # 4. 儲存結果
         results_HA_pairs$p_original[i] <- res_orig_HA$p.value
         results_HA_pairs$d_original[i] <- res_orig_HA$d_observed
         results_HA_pairs$p_replication[i] <- res_rep_HA$p.value
         results_HA_pairs$d_replication[i] <- res_rep_HA$d_observed
-        # H_0 模擬對
+
+        # --- H_0 模擬對 ---
+        # 1. 執行原始研究 (真實效應為 0)
         res_orig_H0 <- run_study(true_effect = true_effect_H0, n = n_to_use, sd = sd_val)
-        res_rep_H0 <- run_study(true_effect = true_effect_H0, n = n_to_use, sd = sd_val)
+
+        # 2. *** MODIFICATION: Determine effect size for replication ***
+        #    Use the observed effect size (d_observed) from the original study.
+        #    Handle NA case: if d_observed is NA, fall back to the true_effect_H0 (which is 0).
+        effect_for_rep_H0 <- if (!is.na(res_orig_H0$d_observed) && is.finite(res_orig_H0$d_observed)) {
+          res_orig_H0$d_observed
+        } else {
+          true_effect_H0 # Fallback if d_observed is NA or infinite (effectively 0)
+        }
+
+        # 3. 執行重複研究，使用從原始研究確定的效應大小
+        res_rep_H0 <- run_study(true_effect = effect_for_rep_H0, n = n_to_use, sd = sd_val)
+
+        # 4. 儲存結果
         results_H0_pairs$p_original[i] <- res_orig_H0$p.value
         results_H0_pairs$d_original[i] <- res_orig_H0$d_observed
         results_H0_pairs$p_replication[i] <- res_rep_H0$p.value
@@ -234,9 +273,10 @@ server <- function(input, output, session) {
       }
     }) # 結束 withProgress
 
-    # 移除模擬中可能產生的 NA 值
-    results_HA_pairs <- na.omit(results_HA_pairs)
-    results_H0_pairs <- na.omit(results_H0_pairs)
+    # 移除模擬中可能產生的 NA 值 (主要來自 p 值)
+    results_HA_pairs <- results_HA_pairs[complete.cases(results_HA_pairs$p_original, results_HA_pairs$p_replication), ]
+    results_H0_pairs <- results_H0_pairs[complete.cases(results_H0_pairs$p_original, results_H0_pairs$p_replication), ]
+    # d_original 或 d_replication 可能仍有 NA，如果計算失敗，但不影響 p 值分析
     num_valid_sim_HA <- nrow(results_HA_pairs)
     num_valid_sim_H0 <- nrow(results_H0_pairs)
 
@@ -264,20 +304,25 @@ server <- function(input, output, session) {
       # 整體重複率
       rate_rep_HA <- mean(significant_originals_HA$p_replication < alpha) * 100
       output_HA_text <- paste0(output_HA_text, sprintf("整體重複成功率 (給定原始研究顯著)：%.2f%%\n", rate_rep_HA))
+      output_HA_text <- paste0(output_HA_text, "  (注意：重複研究基於原始觀察效應量模擬)\n")
 
-      # 贏家詛咒
-      avg_d_all_HA <- mean(results_HA_pairs$d_original)
-      avg_d_sig_HA <- mean(significant_originals_HA$d_original)
-      output_HA_text <- paste0(output_HA_text, "\n--- 贏家詛咒分析 (對立假設 H_A) ---\n")
+
+      # 贏家詛咒 (分析原始研究的 d)
+      # Filter out potential NA/Inf values in d_original before calculating mean
+      avg_d_all_HA <- mean(results_HA_pairs$d_original, na.rm = TRUE)
+      avg_d_sig_HA <- mean(significant_originals_HA$d_original, na.rm = TRUE)
+      output_HA_text <- paste0(output_HA_text, "\n--- 贏家詛咒分析 (對立假設 H_A - 原始研究) ---\n")
       output_HA_text <- paste0(output_HA_text, sprintf("平均觀察效應量 (d) - 所有研究：%.3f\n", avg_d_all_HA))
       output_HA_text <- paste0(output_HA_text, sprintf("平均觀察效應量 (d) - *僅限顯著* 研究 ('贏家')：%.3f\n", avg_d_sig_HA))
-      if(avg_d_sig_HA > avg_d_all_HA) output_HA_text <- paste0(output_HA_text, "  -> 顯著研究的平均效應量被高估。\n")
+      if(!is.na(avg_d_sig_HA) && !is.na(avg_d_all_HA) && avg_d_sig_HA > avg_d_all_HA) output_HA_text <- paste0(output_HA_text, "  -> 顯著研究的平均效應量被高估。\n")
 
-      # 向平均值迴歸
-      avg_d_rep_for_winners <- mean(significant_originals_HA$d_replication)
+      # 向平均值迴歸 (比較原始顯著研究的 d 和它們對應的重複研究的 d)
+      # Filter out potential NA/Inf values before calculating mean
+      avg_d_rep_for_winners <- mean(significant_originals_HA$d_replication, na.rm = TRUE)
       output_HA_text <- paste0(output_HA_text, "\n--- 向平均值迴歸分析 (對立假設 H_A) ---\n")
-      output_HA_text <- paste0(output_HA_text, sprintf("重複研究的平均觀察效應量 (d) (針對原始'贏家')：%.3f\n", avg_d_rep_for_winners))
-      if(avg_d_rep_for_winners < avg_d_sig_HA) output_HA_text <- paste0(output_HA_text, "  -> 重複研究效應量向平均值迴歸。\n")
+      output_HA_text <- paste0(output_HA_text, sprintf("原始'贏家'研究的平均觀察效應量 (d)：%.3f\n", avg_d_sig_HA))
+      output_HA_text <- paste0(output_HA_text, sprintf("對應重複研究的平均觀察效應量 (d)：%.3f\n", avg_d_rep_for_winners))
+      if(!is.na(avg_d_rep_for_winners) && !is.na(avg_d_sig_HA) && avg_d_rep_for_winners < avg_d_sig_HA) output_HA_text <- paste0(output_HA_text, "  -> 重複研究效應量向平均值迴歸。\n")
 
       # 分層重複成功率計算 (H_A)
       bin1_HA <- significant_originals_HA[significant_originals_HA$p_original >= 0.01 & significant_originals_HA$p_original < 0.05, ]
@@ -320,21 +365,25 @@ server <- function(input, output, session) {
       # 偽陽性重複率
       rate_rep_H0 <- mean(significant_originals_H0$p_replication < alpha) * 100
       output_H0_text <- paste0(output_H0_text, sprintf("整體偽陽性重複率 (給定原始研究為偽陽性)：%.2f%%\n", rate_rep_H0))
-      output_H0_text <- paste0(output_H0_text, sprintf("  (應接近 alpha = %.1f%%)\n", alpha * 100))
+      output_H0_text <- paste0(output_H0_text, "  (注意：重複研究基於原始偽陽性觀察效應量模擬)\n")
+      # output_H0_text <- paste0(output_H0_text, sprintf("  (可能不再等於 alpha = %.1f%%)\n", alpha * 100)) # Commented out as it might be confusing
 
-      # H0 下的贏家詛咒現象
-      avg_d_all_H0 <- mean(results_H0_pairs$d_original)
-      avg_abs_d_sig_H0 <- mean(abs(significant_originals_H0$d_original))
+      # H0 下的贏家詛咒現象 (分析原始研究的 d)
+      # Filter out potential NA/Inf values before calculating mean
+      avg_d_all_H0 <- mean(results_H0_pairs$d_original, na.rm = TRUE)
+      avg_abs_d_sig_H0 <- mean(abs(significant_originals_H0$d_original), na.rm = TRUE)
       output_H0_text <- paste0(output_H0_text, "\n--- 虛無假設 (H_0) 情境下的贏家詛咒類似現象分析 ---\n")
       output_H0_text <- paste0(output_H0_text, sprintf("平均觀察效應量 (d) - 所有研究：%.3f (應接近 0)\n", avg_d_all_H0))
       output_H0_text <- paste0(output_H0_text, sprintf("平均 *絕對* 效應量 |d| - *僅限偽陽性* 研究 ('贏家')：%.3f\n", avg_abs_d_sig_H0))
-      if(avg_abs_d_sig_H0 > abs(avg_d_all_H0) + 0.01) output_H0_text <- paste0(output_H0_text, "  -> 偽陽性結果因隨機誤差顯示非零效應量。\n")
+      if(!is.na(avg_abs_d_sig_H0) && !is.na(avg_d_all_H0) && avg_abs_d_sig_H0 > abs(avg_d_all_H0) + 0.01) output_H0_text <- paste0(output_H0_text, "  -> 偽陽性結果因隨機誤差顯示非零效應量。\n")
 
-      # H0 下的向平均值迴歸
-      avg_abs_d_rep_for_winners <- mean(abs(significant_originals_H0$d_replication))
+      # H0 下的向平均值迴歸 (比較原始偽陽性研究的 |d| 和它們對應的重複研究的 |d|)
+      # Filter out potential NA/Inf values before calculating mean
+      avg_abs_d_rep_for_winners <- mean(abs(significant_originals_H0$d_replication), na.rm = TRUE)
       output_H0_text <- paste0(output_H0_text, "\n--- 虛無假設 (H_0) 情境下的向平均值迴歸分析 ---\n")
-      output_H0_text <- paste0(output_H0_text, sprintf("重複研究的平均 *絕對* 效應量 |d| (針對原始偽陽性)：%.3f\n", avg_abs_d_rep_for_winners))
-      if(avg_abs_d_rep_for_winners < avg_abs_d_sig_H0) output_H0_text <- paste0(output_H0_text, "  -> 重複研究的絕對效應量向零迴歸。\n")
+      output_H0_text <- paste0(output_H0_text, sprintf("原始偽陽性研究的平均 *絕對* 效應量 |d|：%.3f\n", avg_abs_d_sig_H0))
+      output_H0_text <- paste0(output_H0_text, sprintf("對應重複研究的平均 *絕對* 效應量 |d|：%.3f\n", avg_abs_d_rep_for_winners))
+      if(!is.na(avg_abs_d_rep_for_winners) && !is.na(avg_abs_d_sig_H0) && avg_abs_d_rep_for_winners < avg_abs_d_sig_H0) output_H0_text <- paste0(output_H0_text, "  -> 重複研究的絕對效應量向零迴歸。\n")
 
       # 分層偽陽性重複率計算 (H_0)
       bin1_H0 <- significant_originals_H0[significant_originals_H0$p_original >= 0.01 & significant_originals_H0$p_original < 0.05, ]
@@ -354,7 +403,7 @@ server <- function(input, output, session) {
         rate3_H0 <- mean(bin3_H0$p_replication < alpha) * 100
         output_stratified_H0 <- paste0(output_stratified_H0, sprintf(" - 原始 p 值 < 0.001 (共 %d 次): 偽陽性重複率 = %.2f%%\n", nrow(bin3_H0), rate3_H0))
       } else { output_stratified_H0 <- paste0(output_stratified_H0, " - 原始 p 值 < 0.001: 無此偽陽性情況。\n") }
-      output_stratified_H0 <- paste0(output_stratified_H0, sprintf("   (注意：在虛無假設為真時，各層重複率理論上都應接近 alpha = %.1f%%)\n", alpha * 100))
+      output_stratified_H0 <- paste0(output_stratified_H0, sprintf("   (注意：在 H0 下，重複率基於原始觀察效應量，可能不再等於 alpha = %.1f%%)\n", alpha * 100))
 
     } else {
       output_H0_text <- paste0(output_H0_text, "\n在虛無假設情境下，無顯著的（偽陽性）原始研究。\n")
@@ -366,8 +415,8 @@ server <- function(input, output, session) {
       text_H0 = output_H0_text,
       stratified_HA = output_stratified_HA,
       stratified_H0 = output_stratified_H0,
-      p_values_HA = results_HA_pairs$p_original,
-      p_values_H0 = results_H0_pairs$p_original
+      p_values_HA = results_HA_pairs$p_original, # Keep original p-values for distribution plot
+      p_values_H0 = results_H0_pairs$p_original  # Keep original p-values for distribution plot
     )
   })
 
@@ -378,6 +427,7 @@ server <- function(input, output, session) {
   output$stratified_results_H0 <- renderText({ simulation_results()$stratified_H0 })
 
   # --- 輸出：渲染 p 值分佈圖 ---
+  # (Plotting logic remains the same, showing distribution of *original* study p-values)
   output$p_value_distribution_plot <- renderPlot({
     res <- simulation_results() # 獲取模擬結果
     # 確保 p 值數據可用 (使用 req 函數)
@@ -392,21 +442,45 @@ server <- function(input, output, session) {
     if(length(res$p_values_H0) > 0) {
         plot_data_list$H0 <- data.frame(p_value = res$p_values_H0, Hypothesis = "虛無假設 (H_0) 為真")
     }
+    # Check if plot_data_list is empty before binding
+    if (length(plot_data_list) == 0) {
+        return(NULL) # Return NULL if no data to plot
+    }
     plot_data <- bind_rows(plot_data_list)
+
+    # Check if plot_data is empty or has no valid p_values after binding
+    if (nrow(plot_data) == 0 || all(is.na(plot_data$p_value))) {
+        return(NULL) # Return NULL if no valid data
+    }
+
     # 確保 Hypothesis 是因子類型，並設定正確的層級順序 (如果需要)
-    plot_data$Hypothesis <- factor(plot_data$Hypothesis, levels = c("對立假設 (H_A) 為真", "虛無假設 (H_0) 為真"))
+    # Ensure levels exist in the actual data before setting factor levels
+    present_levels <- intersect(c("對立假設 (H_A) 為真", "虛無假設 (H_0) 為真"), unique(plot_data$Hypothesis))
+    if (length(present_levels) > 0) {
+      plot_data$Hypothesis <- factor(plot_data$Hypothesis, levels = present_levels)
+    } else {
+      # Handle case where Hypothesis column might be problematic (e.g., all NA)
+      # This might indicate an issue upstream in data generation or processing
+      warning("Hypothesis factor levels could not be set properly.")
+      # You might want to stop plotting or plot without faceting/coloring by Hypothesis
+      # For now, let ggplot handle it, but be aware.
+    }
+
+    # Define colors making sure names match the factor levels present in the data
+    color_map <- c("對立假設 (H_A) 為真" = "skyblue", "虛無假設 (H_0) 為真" = "salmon")
+    active_colors <- color_map[present_levels] # Use only colors for levels present
 
 
     # 使用 ggplot2 繪製密度圖
     ggplot(plot_data, aes(x = p_value, fill = Hypothesis)) +
-      geom_density(alpha = 0.6, na.rm = TRUE) + # na.rm=TRUE 移除缺失值
+      # Ensure geom_density handles potential NA p_values gracefully
+      geom_density(alpha = 0.6, na.rm = TRUE) +
       geom_vline(xintercept = alpha_val, linetype = "dashed", color = "red", size = 1) +
       annotate("text", x = alpha_val, y = Inf, label = paste("alpha =", alpha_val), hjust = -0.1, vjust = 1.5, color = "red", size = 4) +
-      # 手動設定填充顏色
-      scale_fill_manual(values = c("對立假設 (H_A) 為真" = "skyblue", "虛無假設 (H_0) 為真" = "salmon"),
-                        # 處理只有一種假設數據的情況
-                        limits = levels(plot_data$Hypothesis),
-                        drop = FALSE) + # 不要丟棄未使用的因子水平
+      # Use the dynamically created color map and limits
+      scale_fill_manual(values = active_colors,
+                        limits = present_levels, # Use only present levels in the legend
+                        drop = FALSE) + # Keep legend consistent even if one level is missing
       labs(
         title = "原始研究 P 值分佈", x = "P 值", y = "密度", fill = "假設情境"
       ) +
