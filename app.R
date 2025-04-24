@@ -148,11 +148,23 @@ ui <- fluidPage(
                  strong("贏家詛咒 (Winner's Curse)："),
                  p("指那些因為達到統計顯著而被挑選出來的研究（「贏家」），其觀察到的效應量往往會高估真實效應量的現象。這是因為，除了真實效應外，隨機誤差也「幫助」了這些研究達到顯著，而這種「有幫助」的隨機誤差通常會使觀察到的效應看起來更大。"),
                  p(em("在情境一 (對立假設 H_A 為真) 中："), "比較「所有 H_A 研究」和「*僅限顯著的* H_A 研究」的平均觀察效應量 (d)。後者（「贏家」）的平均 d 通常會更高，這就體現了贏家詛咒。"),
-                 p(em("在情境二 (虛無假設 H_0 為真) 中："), "類似現象也會發生。偽陽性的研究（「贏家」）必然因為隨機誤差而觀察到一個偏離真實值零的效應量。我們關注的是「平均*絕對*觀察效應量 |d|」，對於偽陽性研究，這個值會顯著大於零。")
+                 p(em("在情境二 (虛無假設 H_0 為真) 中："), "類似現象也會發生。偽陽性的研究（「贏家」）必然因為隨機誤差而觀察到一個偏離真實值零的效應量。我們關注的是「平均*絕對*觀察效應量 |d|」，對於偽陽性研究，這個值會顯著大於零。"),
 
-                 # Removed sections related to Regression Toward the Mean
+                 # Added information about False Evidence Rate (FER)
+                 strong("錯誤證據率 (False Evidence Rate, FER):"),
+                 p("FER 是指在給定觀察到的 p 值時，虛無假設 (H₀) 為真的機率。它考慮了研究的統計功效 (Power) 和事前機率 (Prior Probability)。一個簡化的計算方法是使用以下公式 (基於特定假設，例如事前機率為 0.5)："),
+                 tags$pre("FER = pnorm(qnorm(P, lower.tail=FALSE) * 0.414, lower.tail=FALSE)"),
+                 p("其中 P 是觀察到的 p 值。根據此公式，一些特定 p 值對應的 FER 大約為："),
+                 tags$ul(
+                   tags$li("p = 0.05 時，FER 約為 0.248"),
+                   tags$li("p = 0.01 時，FER 約為 0.168"),
+                   tags$li("p = 0.005 時，FER 約為 0.054")
+                 ),
+                 p("這意味著即使達到傳統的顯著水準 (如 p < 0.05)，仍然有相當高的機率該結果是基於虛無假設為真的情況下觀察到的。"),
+                 p(em("參考資料:"), a("Ioannidis, J. P. A. (2024). The False Evidence Rate. Proceedings of the National Academy of Sciences, 121(49), e2415706122.", href="https://www.pnas.org/doi/10.1073/pnas.2415706122", target="_blank")),
 
-                 ,strong("P 值分佈圖："),
+
+                 strong("P 值分佈圖："),
                  p("此圖顯示了在對立假設為真和虛無假設為真兩種情境下，模擬出的原始研究 p 值的分布情況。"),
                  p(em("當虛無假設 (H_0) 為真時："), "理論上 p 值應呈現均勻分佈（圖上的直方圖或密度曲線應大致是平坦的）。低於 alpha 的 p 值比例應接近 alpha。使用直方圖時，每個長條的高度應大致相等。"), # Added note for histogram
                  p(em("當對立假設 (H_A) 為真時："), "p 值會傾向於集中在較低的值。低於 alpha 的 p 值比例反映了研究的統計功效。分佈的形狀取決於功效的大小。")
